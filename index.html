@@ -158,6 +158,28 @@
   .guesses{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
   .guess{background:rgba(20,184,166,.15);border:1px solid rgba(20,184,166,.4);color:#5eead4;border-radius:10px;padding:10px 14px;font-weight:700;font-size:18px}
 
+  /* trip history */
+  .histList{max-height:56vh;overflow-y:auto;margin:0 -4px 4px;padding:0 4px;display:flex;flex-direction:column;gap:8px}
+  .trip{background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+  .trip .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .trip .when{font-weight:700}
+  .trip .when small{display:block;color:var(--muted);font-weight:500;font-size:12px;margin-top:2px}
+  .trip .fig{text-align:right;white-space:nowrap}
+  .trip .fig .sp{font-weight:800;font-variant-numeric:tabular-nums}
+  .trip .fig .bd{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+  .badge{display:inline-block;margin-top:6px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:99px}
+  .badge.under{background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid rgba(16,185,129,.35)}
+  .badge.over{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.35)}
+  .badge.none{background:rgba(148,163,184,.15);color:#cbd5e1;border:1px solid rgba(148,163,184,.3)}
+  .trip .acts{display:flex;gap:8px;margin-top:10px}
+  .trip .acts button{flex:1;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:10px;padding:9px;font-size:13px;font-weight:600}
+  .trip .acts button.rm{color:#fca5a5;background:rgba(239,68,68,.10);border-color:rgba(239,68,68,.25)}
+  .trip .detail{margin-top:10px;border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:6px}
+  .trip .detail .row{display:flex;justify-content:space-between;font-size:14px;color:var(--muted)}
+  .trip .detail .row b{color:var(--text);font-weight:600}
+  .trip .detail .row .p{font-variant-numeric:tabular-nums}
+  .histEmpty{color:var(--muted);text-align:center;padding:24px 10px;line-height:1.6}
+
   /* toast */
   .toast{
     position:fixed;left:50%;bottom:calc(var(--safe-bottom) + 90px);transform:translateX(-50%) translateY(20px);
@@ -251,8 +273,20 @@
       <input id="taxInput" type="number" inputmode="decimal" placeholder="0">
     </div>
     <button class="btn" id="saveSettings">Save</button>
+    <button class="btn ghost" id="historyBtn" style="margin-top:8px">📋 Trip history</button>
     <button class="btn ghost" id="closeMenu" style="margin-top:8px">Close</button>
-    <button class="btn danger" id="resetTrip" style="margin-top:8px">Clear cart &amp; start new trip</button>
+    <button class="btn danger" id="resetTrip" style="margin-top:8px">Finish trip &amp; start new</button>
+  </div>
+</div>
+
+<!-- Trip history sheet -->
+<div class="scrim" id="historyScrim">
+  <div class="sheet">
+    <h2>Trip history</h2>
+    <p>Every finished trip is saved here — spent vs. budget, and what was in the cart.</p>
+    <div class="histList" id="histList"></div>
+    <button class="btn ghost" id="historyClose" style="margin-top:6px">Close</button>
+    <button class="btn danger" id="historyClear" style="margin-top:8px">Delete all history</button>
   </div>
 </div>
 
@@ -284,6 +318,8 @@
   const money = n => "$" + (Math.round(n*100)/100).toFixed(2);
 
   const KEY = "budgetCart.v1";
+  const HKEY = "budgetCart.history.v1";
+  let history = [];   // finished trips, newest first
   const state = {
     budget: 0,
     store: "",
@@ -310,6 +346,15 @@
         state.items = Array.isArray(d.items)? d.items : [];
       }
     }catch(e){}
+  }
+  function loadHistory(){
+    try{
+      const h = JSON.parse(localStorage.getItem(HKEY)||"[]");
+      history = Array.isArray(h) ? h : [];
+    }catch(e){ history = []; }
+  }
+  function saveHistory(){
+    try{ localStorage.setItem(HKEY, JSON.stringify(history)); }catch(e){}
   }
 
   /* ---------- calc ---------- */
@@ -479,7 +524,7 @@
 
   // physical keyboard support (desktop testing)
   window.addEventListener("keydown", e=>{
-    if($("#menuScrim").classList.contains("show")||$("#ocrScrim").classList.contains("show")) return;
+    if($("#menuScrim").classList.contains("show")||$("#ocrScrim").classList.contains("show")||$("#historyScrim").classList.contains("show")) return;
     if(/^[0-9]$/.test(e.key)) tapKey(e.key);
     else if(e.key===".") tapKey(".");
     else if(e.key==="Backspace") $("#backKey").click();
@@ -506,12 +551,110 @@
     toast(state.budget>0 ? "Budget set to "+money(state.budget) : "Budget cleared");
   };
   $("#resetTrip").onclick = ()=>{
-    if(!confirm("Clear all items and start a fresh trip? Your budget and settings stay.")) return;
+    const hasItems = state.items.length > 0;
+    const msg = hasItems
+      ? "Finish this trip? It'll be saved to Trip history, then the cart clears for a new one. Your budget & settings stay."
+      : "Start a fresh trip? (Nothing to save — the cart is empty.)";
+    if(!confirm(msg)) return;
+    if(hasItems){
+      history.unshift({
+        id: Date.now()+""+Math.floor(Math.random()*1000),
+        endedAt: Date.now(),
+        store: state.store,
+        budget: state.budget,
+        spent: spent(),
+        items: state.items.map(i=>({name:i.name, price:i.price, qty:i.qty, base:i.base, taxed:i.taxed}))
+      });
+      if(history.length > 200) history.length = 200;
+      saveHistory();
+    }
     state.items = []; state.entry=""; state.qty=1; lastOver=false;
     save(); render(); $("#menuScrim").classList.remove("show");
-    toast("New trip started");
+    toast(hasItems ? "Trip saved to history · new trip started" : "New trip started");
   };
   $("#menuScrim").addEventListener("click", e=>{ if(e.target===$("#menuScrim")) $("#menuScrim").classList.remove("show"); });
+
+  /* ---------- trip history ---------- */
+  function fmtDate(ts){
+    const d = new Date(ts);
+    try{
+      return d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})
+        + " · " + d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"});
+    }catch(e){ return d.toDateString(); }
+  }
+  function renderHistory(){
+    const wrap = $("#histList");
+    wrap.innerHTML = "";
+    if(!history.length){
+      wrap.innerHTML = '<div class="histEmpty">🧾<br>No finished trips yet.<br>' +
+        'Tap <b>Finish trip &amp; start new</b> after a shop to save it here.</div>';
+      $("#historyClear").style.display = "none";
+      return;
+    }
+    $("#historyClear").style.display = "";
+    history.forEach(trip=>{
+      const hasBudget = trip.budget > 0;
+      const diff = trip.budget - trip.spent;
+      let badge = '<span class="badge none">no budget set</span>';
+      if(hasBudget){
+        badge = diff >= 0
+          ? '<span class="badge under">'+money(diff)+' under</span>'
+          : '<span class="badge over">'+money(Math.abs(diff))+' over</span>';
+      }
+      const card = document.createElement("div");
+      card.className = "trip";
+      card.innerHTML =
+        '<div class="top">' +
+          '<div class="when">'+ (trip.store || "Shopping trip") +
+            '<small>'+ fmtDate(trip.endedAt) +' · '+ trip.items.length +' item'+(trip.items.length===1?"":"s") +'</small>' +
+            badge +
+          '</div>' +
+          '<div class="fig"><div class="sp">'+ money(trip.spent) +'</div>' +
+            (hasBudget? '<div class="bd">of '+ money(trip.budget) +'</div>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="acts">' +
+          '<button class="view">View items</button>' +
+          '<button class="rm">Delete</button>' +
+        '</div>' +
+        '<div class="detail" style="display:none"></div>';
+
+      const detail = card.querySelector(".detail");
+      const viewBtn = card.querySelector(".view");
+      viewBtn.onclick = ()=>{
+        const open = detail.style.display !== "none";
+        if(open){ detail.style.display="none"; viewBtn.textContent="View items"; return; }
+        detail.innerHTML = trip.items.map((it,idx)=>{
+          const bits = [];
+          if(it.qty>1) bits.push(it.qty+"×"+money(it.base));
+          if(it.taxed) bits.push("tax");
+          const sub = bits.length? ' <span style="opacity:.7">('+bits.join(", ")+')</span>' : '';
+          return '<div class="row"><b>'+ (it.name || ("Item "+(idx+1))) + '</b>' + sub +
+                 '<span class="p">'+ money(it.price) +'</span></div>';
+        }).join("");
+        detail.style.display = "flex";
+        viewBtn.textContent = "Hide items";
+      };
+      card.querySelector(".rm").onclick = ()=>{
+        const i = history.findIndex(t=>t.id===trip.id);
+        if(i<0) return;
+        const [removed] = history.splice(i,1);
+        saveHistory(); renderHistory();
+        toast("Trip deleted", "Undo", ()=>{ history.splice(i,0,removed); saveHistory(); renderHistory(); });
+      };
+      wrap.appendChild(card);
+    });
+  }
+  function openHistory(){ renderHistory(); $("#historyScrim").classList.add("show"); }
+  $("#historyBtn").onclick = ()=>{ $("#menuScrim").classList.remove("show"); openHistory(); };
+  $("#historyClose").onclick = ()=>$("#historyScrim").classList.remove("show");
+  $("#historyClear").onclick = ()=>{
+    if(!history.length) return;
+    if(!confirm("Delete ALL saved trips? This can't be undone.")) return;
+    history = []; saveHistory(); renderHistory();
+    toast("History cleared");
+  };
+  $("#historyScrim").addEventListener("click", e=>{ if(e.target===$("#historyScrim")) $("#historyScrim").classList.remove("show"); });
 
   /* ---------- camera + OCR ---------- */
   const camInput = $("#camInput");
@@ -637,6 +780,7 @@
 
   /* ---------- boot ---------- */
   load();
+  loadHistory();
   lastOver = state.budget>0 && spent() > state.budget;
   render();
   if(state.budget<=0 && state.items.length===0){ setTimeout(openMenu, 350); }

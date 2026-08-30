@@ -19,6 +19,9 @@ have left** — and it does the subtracting for you.
 - **📷 Photograph the price tag** and it reads the number off it. You always
   confirm the price before it's added — it never guesses silently.
 - **Quantity** (2 × $4.99) and an optional **+Tax** toggle for taxed items.
+- **Trip history** — tap *Finish trip & start new* and the shop is saved: date, store,
+  spent vs. budget, over/under, and the full item list. Browse or delete past trips
+  from ☰ → *Trip history*.
 - Every item is in a list you can **delete or Undo** if you grabbed the wrong price.
 - **Remembers your cart** if your screen locks or you close the tab — nothing lost.
 - Works **offline** once loaded (the photo reader needs data the first time).
