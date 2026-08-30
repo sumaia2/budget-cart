@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Budget Cart</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  :root{
+    --bg:#0b1120; --panel:#111a2e; --panel-2:#0f1626; --line:#1e2b45;
+    --text:#f1f5f9; --muted:#94a3b8;
+    --ok:#10b981; --warn:#f59e0b; --bad:#ef4444;
+    --accent:#14b8a6; --accent-press:#0d9488;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+    --safe-top:env(safe-area-inset-top,0px);
+    --safe-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex; flex-direction:column; min-height:100%;
+    overscroll-behavior-y:none;
+  }
+  button{font-family:inherit; cursor:pointer; border:none; color:inherit}
+  input{font-family:inherit}
+
+  /* ---------- Header / big number ---------- */
+  header{
+    padding:calc(var(--safe-top) + 14px) 18px 16px;
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border-bottom:1px solid var(--line);
+    transition:background .4s ease;
+  }
+  .toprow{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .brand{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:.3px}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent)}
+  .brand small{font-weight:500;color:var(--muted);font-size:12px}
+  .iconbtn{
+    background:rgba(255,255,255,.06); border:1px solid var(--line);
+    width:40px;height:40px;border-radius:12px;font-size:18px;
+    display:flex;align-items:center;justify-content:center
+  }
+  .iconbtn:active{background:rgba(255,255,255,.12)}
+
+  .remain-label{margin-top:16px;color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:1px}
+  .remain{
+    font-size:64px;font-weight:800;line-height:1;margin-top:4px;
+    letter-spacing:-1px;transition:color .3s ease;
+    font-variant-numeric:tabular-nums
+  }
+  .remain.small{font-size:44px}
+  .sub{display:flex;gap:18px;margin-top:12px;color:var(--muted);font-size:13px;flex-wrap:wrap}
+  .sub b{color:var(--text);font-variant-numeric:tabular-nums}
+
+  .bar{height:10px;background:rgba(255,255,255,.08);border-radius:99px;margin-top:14px;overflow:hidden}
+  .bar > i{display:block;height:100%;width:0;border-radius:99px;background:var(--ok);transition:width .35s ease,background .35s ease}
+
+  .flash{animation:flash .5s ease}
+  @keyframes flash{0%{transform:scale(1)}40%{transform:scale(1.06)}100%{transform:scale(1)}}
+
+  /* ---------- List ---------- */
+  main{flex:1;overflow-y:auto;padding:14px 14px 4px;-webkit-overflow-scrolling:touch}
+  .empty{
+    text-align:center;color:var(--muted);margin-top:14vh;padding:0 24px;line-height:1.6
+  }
+  .empty .big{font-size:44px;margin-bottom:8px}
+  ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+  li.item{
+    display:flex;align-items:center;gap:12px;background:var(--panel);
+    border:1px solid var(--line);border-radius:14px;padding:12px 12px 12px 14px;
+    animation:pop .18s ease
+  }
+  @keyframes pop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  li.item .name{flex:1;min-width:0}
+  li.item .name .n{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  li.item .name .m{color:var(--muted);font-size:12px;margin-top:2px}
+  li.item .price{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+  li.item .del{
+    background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.25);
+    width:38px;height:38px;border-radius:11px;font-size:18px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center
+  }
+  li.item .del:active{background:rgba(239,68,68,.25)}
+
+  /* ---------- Entry pad ---------- */
+  .pad{
+    background:var(--panel);border-top:1px solid var(--line);
+    padding:12px 14px calc(var(--safe-bottom) + 12px);box-shadow:var(--shadow)
+  }
+  .display{
+    background:var(--panel-2);border:1px solid var(--line);border-radius:14px;
+    padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px
+  }
+  .display .amt{font-size:34px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+  .display .amt.placeholder{color:var(--muted);font-weight:600}
+  .display .meta{display:flex;gap:8px;align-items:center}
+  .chip{
+    background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:99px;
+    padding:7px 12px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px
+  }
+  .chip.on{background:rgba(20,184,166,.18);border-color:rgba(20,184,166,.5);color:#5eead4}
+  .qtybox{display:flex;align-items:center;gap:2px}
+  .qtybox button{width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.08);font-size:18px;font-weight:700}
+  .qtybox span{min-width:26px;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
+
+  .keys{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .key{
+    background:var(--panel-2);border:1px solid var(--line);border-radius:14px;
+    font-size:24px;font-weight:600;height:56px;display:flex;align-items:center;justify-content:center
+  }
+  .key:active{background:rgba(255,255,255,.10)}
+  .key.fn{font-size:16px;color:var(--muted)}
+  .key.cam{color:var(--accent)}
+  .key.add{
+    grid-row:span 2;background:var(--accent);color:#04201c;font-weight:800;font-size:20px;height:auto
+  }
+  .key.add:active{background:var(--accent-press)}
+  .key.add:disabled{opacity:.4}
+  .key.wide{grid-column:span 2}
+
+  /* ---------- Sheet / modal ---------- */
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;z-index:40}
+  .scrim.show{display:flex}
+  .sheet{
+    background:var(--panel);width:100%;border-radius:22px 22px 0 0;border-top:1px solid var(--line);
+    padding:20px 20px calc(var(--safe-bottom) + 20px);box-shadow:var(--shadow);
+    animation:up .22s ease
+  }
+  @keyframes up{from{transform:translateY(30px);opacity:.6}to{transform:none;opacity:1}}
+  .sheet h2{margin:0 0 4px;font-size:19px}
+  .sheet p{color:var(--muted);margin:0 0 16px;font-size:14px;line-height:1.5}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+  .field input{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;
+    color:var(--text);font-size:22px;font-weight:700;padding:12px 14px;outline:none
+  }
+  .field input:focus{border-color:var(--accent)}
+  .row2{display:flex;gap:10px}
+  .btn{
+    width:100%;background:var(--accent);color:#04201c;font-weight:800;font-size:17px;
+    border-radius:14px;padding:15px;margin-top:6px
+  }
+  .btn:active{background:var(--accent-press)}
+  .btn.ghost{background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--line)}
+  .btn.danger{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
+
+  /* camera / ocr */
+  #ocrPreview{width:100%;border-radius:12px;margin-bottom:12px;display:none;max-height:40vh;object-fit:contain;background:#000}
+  .ocrStatus{color:var(--muted);font-size:14px;min-height:20px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .guesses{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
+  .guess{background:rgba(20,184,166,.15);border:1px solid rgba(20,184,166,.4);color:#5eead4;border-radius:10px;padding:10px 14px;font-weight:700;font-size:18px}
+
+  /* toast */
+  .toast{
+    position:fixed;left:50%;bottom:calc(var(--safe-bottom) + 90px);transform:translateX(-50%) translateY(20px);
+    background:#020617;border:1px solid var(--line);color:var(--text);padding:12px 16px;border-radius:12px;
+    font-size:14px;box-shadow:var(--shadow);display:flex;align-items:center;gap:14px;opacity:0;
+    transition:opacity .2s,transform .2s;pointer-events:none;z-index:60;max-width:90vw
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+  .toast button{color:var(--accent);font-weight:800;font-size:14px;background:none}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<header id="header">
+  <div class="toprow">
+    <div class="brand"><span class="dot"></span>Budget Cart <small id="storeName"></small></div>
+    <button class="iconbtn" id="menuBtn" aria-label="Settings">☰</button>
+  </div>
+
+  <div class="remain-label" id="remainLabel">Remaining budget</div>
+  <div class="remain" id="remain">$0.00</div>
+
+  <div class="sub">
+    <div>Spent <b id="spent">$0.00</b></div>
+    <div>Budget <b id="budgetShown">$0.00</b></div>
+    <div>Items <b id="count">0</b></div>
+  </div>
+  <div class="bar"><i id="barFill"></i></div>
+</header>
+
+<main>
+  <div class="empty" id="empty">
+    <div class="big">🛒</div>
+    <div><b>Set a budget, then add prices as you shop.</b></div>
+    <div style="margin-top:8px;font-size:13px">Type a price and tap <b>Add</b>, or 📷 photograph the price tag.</div>
+  </div>
+  <ul id="list"></ul>
+</main>
+
+<div class="pad">
+  <div class="display">
+    <div class="amt placeholder" id="entry">0.00</div>
+    <div class="meta">
+      <div class="qtybox" title="Quantity">
+        <button id="qMinus">−</button><span id="qty">1</span><button id="qPlus">+</button>
+      </div>
+      <button class="chip" id="taxChip">+Tax</button>
+    </div>
+  </div>
+
+  <div class="keys">
+    <button class="key" data-k="1">1</button>
+    <button class="key" data-k="2">2</button>
+    <button class="key" data-k="3">3</button>
+    <button class="key add" id="addBtn" disabled>Add</button>
+
+    <button class="key" data-k="4">4</button>
+    <button class="key" data-k="5">5</button>
+    <button class="key" data-k="6">6</button>
+
+    <button class="key" data-k="7">7</button>
+    <button class="key" data-k="8">8</button>
+    <button class="key" data-k="9">9</button>
+    <button class="key fn" id="backKey">⌫</button>
+
+    <button class="key cam" id="camKey">📷</button>
+    <button class="key" data-k="0">0</button>
+    <button class="key" data-k=".">.</button>
+    <button class="key fn" id="clrKey">C</button>
+  </div>
+</div>
+
+<input type="file" id="camInput" accept="image/*" capture="environment" class="hidden">
+
+<!-- Settings sheet -->
+<div class="scrim" id="menuScrim">
+  <div class="sheet">
+    <h2>Set your budget</h2>
+    <p>The big number up top is what's left. It goes amber near your limit and red if you go over.</p>
+    <div class="field">
+      <label>Budget for this trip ($)</label>
+      <input id="budgetInput" type="number" inputmode="decimal" placeholder="200.00">
+    </div>
+    <div class="field">
+      <label>Store name (optional)</label>
+      <input id="storeInput" type="text" placeholder="Costco">
+    </div>
+    <div class="field">
+      <label>Sales tax rate for “+Tax” items (%)</label>
+      <input id="taxInput" type="number" inputmode="decimal" placeholder="0">
+    </div>
+    <button class="btn" id="saveSettings">Save</button>
+    <button class="btn ghost" id="closeMenu" style="margin-top:8px">Close</button>
+    <button class="btn danger" id="resetTrip" style="margin-top:8px">Clear cart &amp; start new trip</button>
+  </div>
+</div>
+
+<!-- OCR sheet -->
+<div class="scrim" id="ocrScrim">
+  <div class="sheet">
+    <h2>Read price from photo</h2>
+    <p>Snap the price tag. We'll pull the numbers out — you confirm before it's added.</p>
+    <img id="ocrPreview" alt="price tag preview">
+    <div class="ocrStatus" id="ocrStatus"></div>
+    <div class="guesses" id="ocrGuesses"></div>
+    <div class="field" id="ocrManualWrap">
+      <label>Or type/adjust the price</label>
+      <input id="ocrManual" type="number" inputmode="decimal" placeholder="0.00">
+    </div>
+    <button class="btn" id="ocrUse">Use this price</button>
+    <button class="btn ghost" id="ocrRetake" style="margin-top:8px">Retake photo</button>
+    <button class="btn ghost" id="ocrClose" style="margin-top:8px">Cancel</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastMsg"></span><button id="toastAction" class="hidden"></button></div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script>
+(function(){
+  "use strict";
+  const $ = s => document.querySelector(s);
+  const money = n => "$" + (Math.round(n*100)/100).toFixed(2);
+
+  const KEY = "budgetCart.v1";
+  const state = {
+    budget: 0,
+    store: "",
+    taxRate: 0,
+    items: [],          // {id,name,price,qty,taxed,base}
+    entry: "",          // raw typed price string
+    qty: 1,
+    taxOn: false
+  };
+
+  /* ---------- persistence ---------- */
+  function save(){
+    try{ localStorage.setItem(KEY, JSON.stringify({
+      budget:state.budget, store:state.store, taxRate:state.taxRate, items:state.items
+    })); }catch(e){}
+  }
+  function load(){
+    try{
+      const d = JSON.parse(localStorage.getItem(KEY)||"null");
+      if(d){
+        state.budget = +d.budget||0;
+        state.store = d.store||"";
+        state.taxRate = +d.taxRate||0;
+        state.items = Array.isArray(d.items)? d.items : [];
+      }
+    }catch(e){}
+  }
+
+  /* ---------- calc ---------- */
+  const spent = () => state.items.reduce((s,i)=>s + i.price, 0);
+  function entryValue(){
+    const v = parseFloat(state.entry);
+    return isNaN(v)? 0 : v;
+  }
+
+  /* ---------- render ---------- */
+  function render(){
+    const sp = spent();
+    const remain = state.budget - sp;
+    const hasBudget = state.budget > 0;
+
+    // header numbers
+    const rEl = $("#remain");
+    rEl.textContent = money(remain);
+    rEl.classList.toggle("small", Math.abs(remain) >= 1000);
+    $("#remainLabel").textContent = hasBudget
+      ? (remain < 0 ? "Over budget by" : "Remaining budget")
+      : "Total so far";
+    if(!hasBudget){ rEl.textContent = money(sp); }
+    if(remain < 0 && hasBudget){ rEl.textContent = money(Math.abs(remain)); }
+
+    $("#spent").textContent = money(sp);
+    $("#budgetShown").textContent = hasBudget ? money(state.budget) : "—";
+    $("#count").textContent = state.items.length;
+    $("#storeName").textContent = state.store ? "· "+state.store : "";
+
+    // colour + bar
+    let col = "var(--ok)";
+    const pct = hasBudget ? Math.min(sp/state.budget, 1) : 0;
+    if(hasBudget){
+      const ratio = sp/state.budget;
+      if(ratio >= 1) col = "var(--bad)";
+      else if(ratio >= 0.8) col = "var(--warn)";
+    } else col = "var(--text)";
+    rEl.style.color = col;
+    const fill = $("#barFill");
+    fill.style.width = (pct*100)+"%";
+    fill.style.background = col;
+    $("#header").style.background = hasBudget && sp/state.budget >= 1
+      ? "linear-gradient(180deg,#2a0f16,#1a0a10)"
+      : "linear-gradient(180deg,var(--panel),var(--panel-2))";
+
+    // list
+    const list = $("#list");
+    $("#empty").style.display = state.items.length ? "none" : "block";
+    list.innerHTML = "";
+    // newest first
+    for(let idx = state.items.length-1; idx >= 0; idx--){
+      const it = state.items[idx];
+      const li = document.createElement("li");
+      li.className = "item";
+      const meta = [];
+      if(it.qty > 1) meta.push(it.qty + " × " + money(it.base));
+      if(it.taxed) meta.push("incl. tax");
+      li.innerHTML =
+        '<div class="name"><div class="n">'+ (it.name || ("Item "+(idx+1))) +
+        '</div>'+ (meta.length? '<div class="m">'+meta.join(" · ")+'</div>' : '') +
+        '</div><div class="price">'+ money(it.price) +
+        '</div><button class="del" aria-label="Remove">✕</button>';
+      li.querySelector(".del").onclick = () => removeItem(it.id);
+      list.appendChild(li);
+    }
+
+    // entry display
+    const eEl = $("#entry");
+    if(state.entry === ""){ eEl.textContent = "0.00"; eEl.classList.add("placeholder"); }
+    else { eEl.textContent = state.entry; eEl.classList.remove("placeholder"); }
+    $("#qty").textContent = state.qty;
+    $("#taxChip").classList.toggle("on", state.taxOn);
+    $("#addBtn").disabled = entryValue() <= 0;
+  }
+
+  /* ---------- actions ---------- */
+  function priceFromEntry(base){
+    let p = base * state.qty;
+    if(state.taxOn && state.taxRate > 0) p = p * (1 + state.taxRate/100);
+    return Math.round(p*100)/100;
+  }
+
+  function addItem(name){
+    const base = entryValue();
+    if(base <= 0) return;
+    const item = {
+      id: Date.now() + "" + Math.floor(Math.random()*1000),
+      name: name || "",
+      base: base,
+      qty: state.qty,
+      taxed: state.taxOn && state.taxRate > 0,
+      price: priceFromEntry(base)
+    };
+    state.items.push(item);
+    // reset entry, keep qty/tax? reset qty to 1 for safety, keep tax setting
+    state.entry = ""; state.qty = 1;
+    save(); render(); pulse();
+    warnIfCrossed(item);
+  }
+
+  function removeItem(id){
+    const i = state.items.findIndex(x=>x.id===id);
+    if(i<0) return;
+    const [removed] = state.items.splice(i,1);
+    save(); render();
+    toast("Removed "+money(removed.price), "Undo", ()=>{
+      state.items.splice(i,0,removed); save(); render();
+    });
+  }
+
+  let lastOver = false;
+  function warnIfCrossed(item){
+    if(state.budget<=0) return;
+    const sp = spent();
+    const over = sp > state.budget;
+    if(over && !lastOver){
+      toast("⚠️ That put you "+money(sp-state.budget)+" over budget", "Undo", ()=>{
+        removeItemSilent(item.id);
+      });
+      buzz(200);
+    } else if(!over && sp >= state.budget*0.9){
+      toast("Heads up — "+money(state.budget-sp)+" left");
+    }
+    lastOver = over;
+  }
+  function removeItemSilent(id){
+    const i = state.items.findIndex(x=>x.id===id);
+    if(i>=0){ state.items.splice(i,1); save(); render(); lastOver = spent() > state.budget; }
+  }
+
+  function pulse(){
+    const r = $("#remain"); r.classList.remove("flash"); void r.offsetWidth; r.classList.add("flash");
+  }
+  function buzz(ms){ if(navigator.vibrate) try{navigator.vibrate(ms);}catch(e){} }
+
+  /* ---------- keypad ---------- */
+  function tapKey(k){
+    if(k==="."){
+      if(state.entry.includes(".")) return;
+      if(state.entry==="") state.entry = "0";
+      state.entry += "."; render(); return;
+    }
+    // limit to 2 decimals
+    if(state.entry.includes(".")){
+      const dec = state.entry.split(".")[1];
+      if(dec.length >= 2) return;
+    }
+    if(state.entry==="0") state.entry = ""; // avoid leading zero
+    if(state.entry.replace(".","").length >= 7) return; // sane cap
+    state.entry += k;
+    render();
+  }
+
+  document.querySelectorAll(".key[data-k]").forEach(b=>{
+    b.addEventListener("click", ()=>tapKey(b.dataset.k));
+  });
+  $("#backKey").onclick = ()=>{ state.entry = state.entry.slice(0,-1); render(); };
+  $("#clrKey").onclick = ()=>{ state.entry = ""; state.qty = 1; render(); };
+  $("#addBtn").onclick = ()=>addItem();
+  $("#qMinus").onclick = ()=>{ state.qty = Math.max(1, state.qty-1); render(); };
+  $("#qPlus").onclick = ()=>{ state.qty = Math.min(99, state.qty+1); render(); };
+  $("#taxChip").onclick = ()=>{
+    if(state.taxRate<=0){ toast("Set a tax rate in ☰ settings first"); return; }
+    state.taxOn = !state.taxOn; render();
+  };
+
+  // physical keyboard support (desktop testing)
+  window.addEventListener("keydown", e=>{
+    if($("#menuScrim").classList.contains("show")||$("#ocrScrim").classList.contains("show")) return;
+    if(/^[0-9]$/.test(e.key)) tapKey(e.key);
+    else if(e.key===".") tapKey(".");
+    else if(e.key==="Backspace") $("#backKey").click();
+    else if(e.key==="Enter") $("#addBtn").click();
+  });
+
+  /* ---------- settings ---------- */
+  function openMenu(){
+    $("#budgetInput").value = state.budget || "";
+    $("#storeInput").value = state.store || "";
+    $("#taxInput").value = state.taxRate || "";
+    $("#menuScrim").classList.add("show");
+  }
+  $("#menuBtn").onclick = openMenu;
+  $("#closeMenu").onclick = ()=>$("#menuScrim").classList.remove("show");
+  $("#saveSettings").onclick = ()=>{
+    state.budget = Math.max(0, parseFloat($("#budgetInput").value)||0);
+    state.store = $("#storeInput").value.trim();
+    state.taxRate = Math.max(0, parseFloat($("#taxInput").value)||0);
+    if(state.taxRate<=0) state.taxOn = false;
+    lastOver = spent() > state.budget && state.budget>0;
+    save(); render();
+    $("#menuScrim").classList.remove("show");
+    toast(state.budget>0 ? "Budget set to "+money(state.budget) : "Budget cleared");
+  };
+  $("#resetTrip").onclick = ()=>{
+    if(!confirm("Clear all items and start a fresh trip? Your budget and settings stay.")) return;
+    state.items = []; state.entry=""; state.qty=1; lastOver=false;
+    save(); render(); $("#menuScrim").classList.remove("show");
+    toast("New trip started");
+  };
+  $("#menuScrim").addEventListener("click", e=>{ if(e.target===$("#menuScrim")) $("#menuScrim").classList.remove("show"); });
+
+  /* ---------- camera + OCR ---------- */
+  const camInput = $("#camInput");
+  let ocrBusy = false;
+  $("#camKey").onclick = ()=> camInput.click();
+
+  camInput.addEventListener("change", async ()=>{
+    const file = camInput.files && camInput.files[0];
+    camInput.value = "";
+    if(!file) return;
+    openOcr();
+    const url = URL.createObjectURL(file);
+    const img = $("#ocrPreview");
+    img.src = url; img.style.display = "block";
+    runOcr(file);
+  });
+
+  function openOcr(){
+    $("#ocrGuesses").innerHTML = "";
+    $("#ocrManual").value = "";
+    $("#ocrPreview").style.display = "none";
+    setOcrStatus("", false);
+    $("#ocrScrim").classList.add("show");
+  }
+  function closeOcr(){ $("#ocrScrim").classList.remove("show"); }
+  function setOcrStatus(msg, spin){
+    const el = $("#ocrStatus");
+    el.innerHTML = (spin? '<span class="spinner"></span>' : '') + (msg||"");
+  }
+
+  async function runOcr(file){
+    if(typeof Tesseract === "undefined"){
+      setOcrStatus("Couldn't load the text reader (offline?). Type the price below.", false);
+      return;
+    }
+    ocrBusy = true;
+    setOcrStatus("Reading the price tag…", true);
+    try{
+      const { data } = await Tesseract.recognize(file, "eng", {
+        tessedit_char_whitelist: "0123456789.$ ",
+      });
+      const text = (data && data.text) || "";
+      const prices = extractPrices(text);
+      if(prices.length){
+        setOcrStatus("Tap the right price, or fix it below:", false);
+        renderGuesses(prices);
+        $("#ocrManual").value = prices[0];
+      } else {
+        setOcrStatus("Couldn't spot a price. Type it in below.", false);
+      }
+    }catch(e){
+      setOcrStatus("Reading failed. Type the price below.", false);
+    }
+    ocrBusy = false;
+  }
+
+  // pull plausible prices out of OCR text
+  function extractPrices(text){
+    const found = [];
+    const re = /(\d{1,4}[.,]\d{2})|(\d{1,3})\b/g;
+    let m;
+    while((m = re.exec(text))){
+      let raw = (m[1]||m[2]).replace(",", ".");
+      let val = parseFloat(raw);
+      if(isNaN(val)) continue;
+      if(val <= 0 || val > 9999) continue;
+      // prefer values with decimals; keep whole numbers as fallback
+      found.push({ val, dec: raw.includes(".") });
+    }
+    // rank: decimals first, then larger (tags usually show the main price big)
+    found.sort((a,b)=> (b.dec - a.dec) || (b.val - a.val));
+    const seen = new Set(), out = [];
+    for(const f of found){
+      const key = f.val.toFixed(2);
+      if(seen.has(key)) continue;
+      seen.add(key); out.push(f.val.toFixed(2));
+      if(out.length >= 4) break;
+    }
+    return out;
+  }
+
+  function renderGuesses(prices){
+    const wrap = $("#ocrGuesses");
+    wrap.innerHTML = "";
+    prices.forEach(p=>{
+      const b = document.createElement("button");
+      b.className = "guess"; b.textContent = "$"+p;
+      b.onclick = ()=>{ $("#ocrManual").value = p; markSelected(b); };
+      wrap.appendChild(b);
+    });
+  }
+  function markSelected(btn){
+    document.querySelectorAll(".guess").forEach(g=>g.style.outline="none");
+    btn.style.outline = "2px solid var(--accent)";
+  }
+
+  $("#ocrUse").onclick = ()=>{
+    const v = parseFloat($("#ocrManual").value);
+    if(!v || v<=0){ setOcrStatus("Enter a price first.", false); return; }
+    state.entry = (Math.round(v*100)/100).toFixed(2);
+    render();
+    closeOcr();
+    toast("Price ready — tap Add (qty "+state.qty+(state.taxOn?", +tax":"")+")");
+  };
+  $("#ocrRetake").onclick = ()=> camInput.click();
+  $("#ocrClose").onclick = closeOcr;
+  $("#ocrScrim").addEventListener("click", e=>{ if(e.target===$("#ocrScrim")) closeOcr(); });
+
+  /* ---------- toast ---------- */
+  let toastTimer=null;
+  function toast(msg, actionLabel, actionFn){
+    const t=$("#toast"), a=$("#toastAction");
+    $("#toastMsg").textContent = msg;
+    if(actionLabel){
+      a.textContent = actionLabel; a.classList.remove("hidden");
+      a.onclick = ()=>{ hideToast(); actionFn&&actionFn(); };
+    } else a.classList.add("hidden");
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, actionLabel? 5000 : 2600);
+  }
+  function hideToast(){ $("#toast").classList.remove("show"); }
+
+  /* ---------- boot ---------- */
+  load();
+  lastOver = state.budget>0 && spent() > state.budget;
+  render();
+  if(state.budget<=0 && state.items.length===0){ setTimeout(openMenu, 350); }
+
+  // register service worker if present (for offline home-screen use)
+  if("serviceWorker" in navigator){
+    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  }
+})();
+</script>
+</body>
+</html>
