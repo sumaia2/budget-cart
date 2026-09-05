@@ -24,8 +24,11 @@ have left** — and it does the subtracting for you.
   spent vs. budget, over/under, and the full item list. Browse or delete past trips
   from ☰ → *Trip history*.
 - **Send to your notes app** — share any trip (or the current cart) as a clean text
-  summary straight into Apple Notes, Google Keep, Notion, or wherever you keep notes,
-  via your phone's Share sheet (copies to clipboard on desktop).
+  summary straight into Samsung Notes, Apple Notes, Google Keep, Notion, or wherever
+  you keep notes, via your phone's Share sheet (copies to clipboard on desktop).
+- **Shopping list** — paste your list (or, from your notes app, tap *Share → Budget
+  Cart* to import it automatically), then tick items off as you shop. Tap *Add $* on a
+  list item to name the next price after it, so your cart lines up with your list.
 - Every item is in a list you can **delete or Undo** if you grabbed the wrong price.
 - **Remembers your cart** if your screen locks or you close the tab — nothing lost.
 - Works **offline** once loaded (the photo reader needs data the first time).
