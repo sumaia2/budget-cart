@@ -25,7 +25,9 @@
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     display:flex; flex-direction:column; min-height:100%;
     overscroll-behavior-y:none;
+    max-width:460px; margin:0 auto;   /* phone-width column, centered on big screens */
   }
+  @media (min-width:480px){ body{border-left:1px solid var(--line);border-right:1px solid var(--line)} }
   button{font-family:inherit; cursor:pointer; border:none; color:inherit}
   input{font-family:inherit}
 
@@ -90,28 +92,23 @@
   /* ---------- Entry pad ---------- */
   .pad{
     background:var(--panel);border-top:1px solid var(--line);
-    padding:12px 14px calc(var(--safe-bottom) + 12px);box-shadow:var(--shadow)
+    padding:10px 14px calc(var(--safe-bottom) + 10px);box-shadow:var(--shadow)
   }
   .display{
     background:var(--panel-2);border:1px solid var(--line);border-radius:14px;
-    padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px
+    padding:8px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px
   }
-  .display .amt{font-size:34px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+  .display .amt{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
   .display .amt.placeholder{color:var(--muted);font-weight:600}
   .display .meta{display:flex;gap:8px;align-items:center}
-  .chip{
-    background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:99px;
-    padding:7px 12px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px
-  }
-  .chip.on{background:rgba(20,184,166,.18);border-color:rgba(20,184,166,.5);color:#5eead4}
   .qtybox{display:flex;align-items:center;gap:2px}
-  .qtybox button{width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.08);font-size:18px;font-weight:700}
+  .qtybox button{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.08);font-size:18px;font-weight:700}
   .qtybox span{min-width:26px;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
 
-  .keys{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .keys{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
   .key{
-    background:var(--panel-2);border:1px solid var(--line);border-radius:14px;
-    font-size:24px;font-weight:600;height:56px;display:flex;align-items:center;justify-content:center
+    background:var(--panel-2);border:1px solid var(--line);border-radius:12px;
+    font-size:22px;font-weight:600;height:46px;display:flex;align-items:center;justify-content:center
   }
   .key:active{background:rgba(255,255,255,.10)}
   .key.fn{font-size:16px;color:var(--muted)}
@@ -227,7 +224,6 @@
       <div class="qtybox" title="Quantity">
         <button id="qMinus">−</button><span id="qty">1</span><button id="qPlus">+</button>
       </div>
-      <button class="chip" id="taxChip">+Tax</button>
     </div>
   </div>
 
@@ -268,11 +264,8 @@
       <label>Store name (optional)</label>
       <input id="storeInput" type="text" placeholder="Costco">
     </div>
-    <div class="field">
-      <label>Sales tax rate for “+Tax” items (%)</label>
-      <input id="taxInput" type="number" inputmode="decimal" placeholder="0">
-    </div>
     <button class="btn" id="saveSettings">Save</button>
+    <button class="btn ghost" id="sendNowBtn" style="margin-top:8px">📤 Send current cart to notes</button>
     <button class="btn ghost" id="historyBtn" style="margin-top:8px">📋 Trip history</button>
     <button class="btn ghost" id="closeMenu" style="margin-top:8px">Close</button>
     <button class="btn danger" id="resetTrip" style="margin-top:8px">Finish trip &amp; start new</button>
@@ -323,17 +316,15 @@
   const state = {
     budget: 0,
     store: "",
-    taxRate: 0,
-    items: [],          // {id,name,price,qty,taxed,base}
+    items: [],          // {id,name,price,qty,base}
     entry: "",          // raw typed price string
-    qty: 1,
-    taxOn: false
+    qty: 1
   };
 
   /* ---------- persistence ---------- */
   function save(){
     try{ localStorage.setItem(KEY, JSON.stringify({
-      budget:state.budget, store:state.store, taxRate:state.taxRate, items:state.items
+      budget:state.budget, store:state.store, items:state.items
     })); }catch(e){}
   }
   function load(){
@@ -342,7 +333,6 @@
       if(d){
         state.budget = +d.budget||0;
         state.store = d.store||"";
-        state.taxRate = +d.taxRate||0;
         state.items = Array.isArray(d.items)? d.items : [];
       }
     }catch(e){}
@@ -412,7 +402,6 @@
       li.className = "item";
       const meta = [];
       if(it.qty > 1) meta.push(it.qty + " × " + money(it.base));
-      if(it.taxed) meta.push("incl. tax");
       li.innerHTML =
         '<div class="name"><div class="n">'+ (it.name || ("Item "+(idx+1))) +
         '</div>'+ (meta.length? '<div class="m">'+meta.join(" · ")+'</div>' : '') +
@@ -427,15 +416,12 @@
     if(state.entry === ""){ eEl.textContent = "0.00"; eEl.classList.add("placeholder"); }
     else { eEl.textContent = state.entry; eEl.classList.remove("placeholder"); }
     $("#qty").textContent = state.qty;
-    $("#taxChip").classList.toggle("on", state.taxOn);
     $("#addBtn").disabled = entryValue() <= 0;
   }
 
   /* ---------- actions ---------- */
   function priceFromEntry(base){
-    let p = base * state.qty;
-    if(state.taxOn && state.taxRate > 0) p = p * (1 + state.taxRate/100);
-    return Math.round(p*100)/100;
+    return Math.round(base * state.qty * 100)/100;
   }
 
   function addItem(name){
@@ -446,12 +432,10 @@
       name: name || "",
       base: base,
       qty: state.qty,
-      taxed: state.taxOn && state.taxRate > 0,
       price: priceFromEntry(base)
     };
     state.items.push(item);
-    // reset entry, keep qty/tax? reset qty to 1 for safety, keep tax setting
-    state.entry = ""; state.qty = 1;
+    state.entry = ""; state.qty = 1;   // reset for the next item
     save(); render(); pulse();
     warnIfCrossed(item);
   }
@@ -517,10 +501,6 @@
   $("#addBtn").onclick = ()=>addItem();
   $("#qMinus").onclick = ()=>{ state.qty = Math.max(1, state.qty-1); render(); };
   $("#qPlus").onclick = ()=>{ state.qty = Math.min(99, state.qty+1); render(); };
-  $("#taxChip").onclick = ()=>{
-    if(state.taxRate<=0){ toast("Set a tax rate in ☰ settings first"); return; }
-    state.taxOn = !state.taxOn; render();
-  };
 
   // physical keyboard support (desktop testing)
   window.addEventListener("keydown", e=>{
@@ -535,7 +515,6 @@
   function openMenu(){
     $("#budgetInput").value = state.budget || "";
     $("#storeInput").value = state.store || "";
-    $("#taxInput").value = state.taxRate || "";
     $("#menuScrim").classList.add("show");
   }
   $("#menuBtn").onclick = openMenu;
@@ -543,8 +522,6 @@
   $("#saveSettings").onclick = ()=>{
     state.budget = Math.max(0, parseFloat($("#budgetInput").value)||0);
     state.store = $("#storeInput").value.trim();
-    state.taxRate = Math.max(0, parseFloat($("#taxInput").value)||0);
-    if(state.taxRate<=0) state.taxOn = false;
     lastOver = spent() > state.budget && state.budget>0;
     save(); render();
     $("#menuScrim").classList.remove("show");
@@ -553,7 +530,7 @@
   $("#resetTrip").onclick = ()=>{
     const hasItems = state.items.length > 0;
     const msg = hasItems
-      ? "Finish this trip? It'll be saved to Trip history, then the cart clears for a new one. Your budget & settings stay."
+      ? "Finish this trip? It'll be saved to Trip history, then the cart resets to $0 so you can set a new budget."
       : "Start a fresh trip? (Nothing to save — the cart is empty.)";
     if(!confirm(msg)) return;
     if(hasItems){
@@ -563,14 +540,16 @@
         store: state.store,
         budget: state.budget,
         spent: spent(),
-        items: state.items.map(i=>({name:i.name, price:i.price, qty:i.qty, base:i.base, taxed:i.taxed}))
+        items: state.items.map(i=>({name:i.name, price:i.price, qty:i.qty, base:i.base}))
       });
       if(history.length > 200) history.length = 200;
       saveHistory();
     }
-    state.items = []; state.entry=""; state.qty=1; lastOver=false;
+    // fresh trip: clear cart AND reset the budget to $0 (store name kept)
+    state.items = []; state.entry=""; state.qty=1; state.budget=0; lastOver=false;
     save(); render(); $("#menuScrim").classList.remove("show");
-    toast(hasItems ? "Trip saved to history · new trip started" : "New trip started");
+    toast(hasItems ? "Trip saved · set a budget for the next one" : "New trip started");
+    setTimeout(openMenu, 400);   // prompt for the new trip's budget
   };
   $("#menuScrim").addEventListener("click", e=>{ if(e.target===$("#menuScrim")) $("#menuScrim").classList.remove("show"); });
 
@@ -582,6 +561,48 @@
         + " · " + d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"});
     }catch(e){ return d.toDateString(); }
   }
+  /* ---------- send a trip to your notes app ---------- */
+  // A static app can't silently write into Notion/Keep/Apple Notes (those need
+  // logins/servers). Instead we hand the phone's native Share sheet a clean text
+  // summary, so you drop it into whichever notes app you already use. Falls back
+  // to copying to the clipboard on desktop.
+  function tripText(trip){
+    const lines = [];
+    lines.push("🛒 " + (trip.store || "Shopping trip") + " — " + fmtDate(trip.endedAt));
+    if(trip.budget > 0){
+      const diff = trip.budget - trip.spent;
+      lines.push("Budget " + money(trip.budget) + " · Spent " + money(trip.spent) +
+        " · " + (diff >= 0 ? money(diff) + " under" : money(Math.abs(diff)) + " OVER"));
+    } else {
+      lines.push("Spent " + money(trip.spent));
+    }
+    lines.push("");
+    trip.items.forEach((it,idx)=>{
+      const q = it.qty > 1 ? " (×" + it.qty + ")" : "";
+      lines.push("• " + (it.name || ("Item " + (idx+1))) + q + " — " + money(it.price));
+    });
+    return lines.join("\n");
+  }
+  async function shareTrip(trip){
+    if(!trip.items || !trip.items.length){ toast("Nothing to send — cart is empty"); return; }
+    const text = tripText(trip);
+    const title = (trip.store || "Shopping trip") + " — " + money(trip.spent);
+    if(navigator.share){
+      try{ await navigator.share({ title, text }); return; }
+      catch(e){ if(e && e.name === "AbortError") return; }  // user dismissed
+    }
+    try{
+      await navigator.clipboard.writeText(text);
+      toast("Copied — paste it into your notes app");
+    }catch(e){
+      window.prompt("Copy this into your notes:", text);
+    }
+  }
+  function currentTrip(){
+    return { store:state.store, endedAt:Date.now(), budget:state.budget, spent:spent(),
+      items: state.items.map(i=>({name:i.name, price:i.price, qty:i.qty, base:i.base})) };
+  }
+
   function renderHistory(){
     const wrap = $("#histList");
     wrap.innerHTML = "";
@@ -615,20 +636,19 @@
         '</div>' +
         '<div class="acts">' +
           '<button class="view">View items</button>' +
+          '<button class="send">Send to notes</button>' +
           '<button class="rm">Delete</button>' +
         '</div>' +
         '<div class="detail" style="display:none"></div>';
 
+      card.querySelector(".send").onclick = ()=>shareTrip(trip);
       const detail = card.querySelector(".detail");
       const viewBtn = card.querySelector(".view");
       viewBtn.onclick = ()=>{
         const open = detail.style.display !== "none";
         if(open){ detail.style.display="none"; viewBtn.textContent="View items"; return; }
         detail.innerHTML = trip.items.map((it,idx)=>{
-          const bits = [];
-          if(it.qty>1) bits.push(it.qty+"×"+money(it.base));
-          if(it.taxed) bits.push("tax");
-          const sub = bits.length? ' <span style="opacity:.7">('+bits.join(", ")+')</span>' : '';
+          const sub = it.qty>1 ? ' <span style="opacity:.7">('+it.qty+'×'+money(it.base)+')</span>' : '';
           return '<div class="row"><b>'+ (it.name || ("Item "+(idx+1))) + '</b>' + sub +
                  '<span class="p">'+ money(it.price) +'</span></div>';
         }).join("");
@@ -646,6 +666,7 @@
     });
   }
   function openHistory(){ renderHistory(); $("#historyScrim").classList.add("show"); }
+  $("#sendNowBtn").onclick = ()=>{ shareTrip(currentTrip()); };
   $("#historyBtn").onclick = ()=>{ $("#menuScrim").classList.remove("show"); openHistory(); };
   $("#historyClose").onclick = ()=>$("#historyScrim").classList.remove("show");
   $("#historyClear").onclick = ()=>{
@@ -694,44 +715,83 @@
     setOcrStatus("Reading the price tag…", true);
     try{
       const { data } = await Tesseract.recognize(file, "eng", {
-        tessedit_char_whitelist: "0123456789.$ ",
+        tessedit_char_whitelist: "0123456789.,$ ",
       });
-      const text = (data && data.text) || "";
-      const prices = extractPrices(text);
+      const words = collectWords(data);
+      const prices = extractPrices((data && data.text) || "", words);
       if(prices.length){
-        setOcrStatus("Tap the right price, or fix it below:", false);
+        setOcrStatus("Tap the price you see on the tag 👇", false);
         renderGuesses(prices);
-        $("#ocrManual").value = prices[0];
+        // no auto-pick — the reader can misread, so you choose the right one
       } else {
-        setOcrStatus("Couldn't spot a price. Type it in below.", false);
+        setOcrStatus("Couldn't read a price clearly. Type it below 👇", false);
       }
     }catch(e){
-      setOcrStatus("Reading failed. Type the price below.", false);
+      setOcrStatus("Reading failed. Type the price below 👇", false);
     }
     ocrBusy = false;
   }
 
-  // pull plausible prices out of OCR text
-  function extractPrices(text){
-    const found = [];
-    const re = /(\d{1,4}[.,]\d{2})|(\d{1,3})\b/g;
-    let m;
-    while((m = re.exec(text))){
-      let raw = (m[1]||m[2]).replace(",", ".");
-      let val = parseFloat(raw);
-      if(isNaN(val)) continue;
-      if(val <= 0 || val > 9999) continue;
-      // prefer values with decimals; keep whole numbers as fallback
-      found.push({ val, dec: raw.includes(".") });
+  // Collect individual OCR words with the on-tag height of their text.
+  // The real price is almost always the biggest number printed, so height ranks well.
+  function collectWords(data){
+    const words = [];
+    const pushFrom = arr => { if(Array.isArray(arr)) arr.forEach(w=>{ if(w && typeof w.text==="string") words.push(w); }); };
+    try{
+      if(data){
+        pushFrom(data.words);
+        (data.lines||[]).forEach(l=>pushFrom(l.words));
+        (data.paragraphs||[]).forEach(p=>(p.lines||[]).forEach(l=>pushFrom(l.words)));
+        (data.blocks||[]).forEach(b=>(b.paragraphs||[]).forEach(p=>(p.lines||[]).forEach(l=>pushFrom(l.words))));
+      }
+    }catch(e){}
+    return words.map(w=>({
+      text: w.text || "",
+      h: (w.bbox && (w.bbox.y1 - w.bbox.y0)) || 0
+    }));
+  }
+
+  function parsePrice(tok){
+    const m = String(tok).match(/(\d{1,4}(?:[.,]\d{2})?)/);
+    if(!m) return null;
+    const raw = m[1].replace(",", ".");
+    const val = parseFloat(raw);
+    if(isNaN(val) || val <= 0 || val > 9999) return null;
+    return { val, dec: raw.includes(".") };
+  }
+
+  // Rank plausible prices. Prefer decimals in a real price range, and bigger text.
+  function extractPrices(text, words){
+    let cands = [];
+    if(words && words.length){
+      const maxH = Math.max(1, ...words.map(w=>w.h));
+      words.forEach(w=>{
+        const p = parsePrice(w.text);
+        if(p) cands.push({ val:p.val, dec:p.dec, size:w.h/maxH });
+      });
     }
-    // rank: decimals first, then larger (tags usually show the main price big)
-    found.sort((a,b)=> (b.dec - a.dec) || (b.val - a.val));
+    if(!cands.length){
+      const re = /\$?\s?(\d{1,4}(?:[.,]\d{2})?)/g; let m;
+      while((m = re.exec(text))){
+        const p = parsePrice(m[1]);
+        if(p) cands.push({ val:p.val, dec:p.dec, size:0 });
+      }
+    }
+    const score = c => {
+      let s = 0;
+      if(c.dec) s += 100;                                   // "12.99" beats "12"
+      if(c.dec && c.val >= 0.5 && c.val <= 999.99) s += 60; // realistic shelf price
+      if(!c.dec && c.val > 999) s -= 80;                    // long ints = item #/barcode
+      s += c.size * 50;                                     // biggest print on the tag
+      return s;
+    };
+    cands.sort((a,b)=> score(b)-score(a) || b.size-a.size || b.val-a.val);
     const seen = new Set(), out = [];
-    for(const f of found){
-      const key = f.val.toFixed(2);
+    for(const c of cands){
+      const key = c.val.toFixed(2);
       if(seen.has(key)) continue;
-      seen.add(key); out.push(f.val.toFixed(2));
-      if(out.length >= 4) break;
+      seen.add(key); out.push(key);
+      if(out.length >= 6) break;
     }
     return out;
   }
@@ -757,7 +817,7 @@
     state.entry = (Math.round(v*100)/100).toFixed(2);
     render();
     closeOcr();
-    toast("Price ready — tap Add (qty "+state.qty+(state.taxOn?", +tax":"")+")");
+    toast("Price ready — tap Add" + (state.qty>1 ? " (qty "+state.qty+")" : ""));
   };
   $("#ocrRetake").onclick = ()=> camInput.click();
   $("#ocrClose").onclick = closeOcr;
