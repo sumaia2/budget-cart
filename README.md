@@ -16,12 +16,16 @@ have left** — and it does the subtracting for you.
 - **Type a price → tap Add.** Just like your calculator habit, but it subtracts from your budget.
 - The big number goes **green → amber → red** as you get close to / over your limit,
   and your phone buzzes + shows an **Undo** the moment an item pushes you over.
-- **📷 Photograph the price tag** and it reads the number off it. You always
-  confirm the price before it's added — it never guesses silently.
-- **Quantity** (2 × $4.99) and an optional **+Tax** toggle for taxed items.
+- **📷 Photograph the price tag** and it reads the number off it. It ranks the
+  numbers by how big they're printed (the price is usually the largest), shows
+  you the candidates, and **you tap the right one** — it never guesses silently.
+- **Quantity** (2 × $4.99) per item.
 - **Trip history** — tap *Finish trip & start new* and the shop is saved: date, store,
   spent vs. budget, over/under, and the full item list. Browse or delete past trips
   from ☰ → *Trip history*.
+- **Send to your notes app** — share any trip (or the current cart) as a clean text
+  summary straight into Apple Notes, Google Keep, Notion, or wherever you keep notes,
+  via your phone's Share sheet (copies to clipboard on desktop).
 - Every item is in a list you can **delete or Undo** if you grabbed the wrong price.
 - **Remembers your cart** if your screen locks or you close the tab — nothing lost.
 - Works **offline** once loaded (the photo reader needs data the first time).
